@@ -11,8 +11,7 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 
--- 🔒 PROTECTED USER
-local PROTECTED_USER = "youer110"
+local ProtectedUser = "youer110"
 
 local ClickSoundId = nil
 pcall(function()
@@ -63,18 +62,20 @@ local TitanImage   = loadImage("titan.png","https://raw.githubusercontent.com/No
 local AntiImage    = loadImage("anti.png","https://raw.githubusercontent.com/Notsoseriousscripter/Decodeinasma/refs/heads/main/attackontitaneating.png")
 local BackgroundAsset = loadImage("bg.png","https://raw.githubusercontent.com/Notsoseriousscripter/Decodeinasma/refs/heads/main/3_20260325_141743_0002.png")
 
--- 🔥 UPDATED WINDOW INFO
 local Window = WindUI:CreateWindow({
     Title = "titan-warfare",
     Icon = WindowIcon,
-    Author = "by JAID",
-    Folder = "TitanWarfareGUI",
+    Author = "JAID",
+    Folder = "AimbotGUI",
     Size = UDim2.fromOffset(580,460),
     Theme = "Dark",
     Transparent = true,
     Background = BackgroundAsset,
     BackgroundImageTransparency = 0.5
 })
+
+Window:Tag({Title="V1.23.0"})
+Window:Tag({Title="Credits: Roflux for inspiration"})
 
 pcall(function()
     Window:OnTabChanged(function()
@@ -194,23 +195,103 @@ PlayerSection:Dropdown({
 local MiscTab = Window:Tab({Title="Misc",Icon=MiscIcon})
 
 MiscTab:Paragraph({
-    Title="V1.23.0",
-    Desc="Credits: Roflux for inspiration",
-    Thumbnail=MiscIcon
+    Title="Experimental",
+    Desc="this tab is for experimental features expect some bugs if there are bugs report it to me on discord",
+    Thumbnail=MiscIcon,
+    Image="https://raw.githubusercontent.com/Notsoseriousscripter/Decodeinasma/refs/heads/main/new-official-aot-illustration-v0-buix6hq9o9zd1.png"
 })
 
 local MiscGroup = MiscTab:Group({})
 local OpGroup = MiscTab:Group({Title="op"})
 
--- 🔥 NEW BUTTON
 MiscTab:Button({
     Title="inf levels",
     Callback=function()
-        local val = LocalPlayer:FindFirstChild("ReplicatedData")
-        if val and val:FindFirstChild("level") then
-            val.level.Value = 999999999
+        local rep = LocalPlayer:FindFirstChild("ReplicatedData")
+        if rep and rep:FindFirstChild("level") then
+            rep.level.Value = 999999999
         end
+    end
+})
+
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local MiscGui = Instance.new("ScreenGui")
+MiscGui.Name = "MiscButtons"
+MiscGui.ResetOnSpawn = false
+MiscGui.Parent = PlayerGui
+
+local MedkitButton
+local AmmoButton
+
+local function MakeDraggable(btn)
+    local dragging, dragInput, startPos, startInputPos
+    btn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            startInputPos = input.Position
+            startPos = btn.Position
+        end
+    end)
+    btn.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - startInputPos
+            btn.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+
+local function CreateButton(name, image)
+    local btn = Instance.new("ImageButton")
+    btn.Name = name
+    btn.Size = UDim2.fromOffset(60,60)
+    btn.Position = UDim2.fromOffset(200,200)
+    btn.BackgroundTransparency = 1
+    btn.Image = image
+    btn.Parent = MiscGui
+    MakeDraggable(btn)
+    return btn
+end
+
+local SupplySection = MiscGroup:Section({Title="Supplys",Box=true,BoxBorder=true,Opened=true})
+
+SupplySection:Toggle({
+    Title="Medkit Button",
+    Callback=function(v)
         PlayClick()
+        if v then
+            MedkitButton = CreateButton("Medkit", MedkitImg)
+            MedkitButton.MouseButton1Click:Connect(function()
+                ReplicatedStorage.Remotes.General.BuySupply:InvokeServer("Medkit")
+            end)
+        else
+            if MedkitButton then MedkitButton:Destroy() MedkitButton=nil end
+        end
+    end
+})
+
+SupplySection:Toggle({
+    Title="Ammo Button",
+    Callback=function(v)
+        PlayClick()
+        if v then
+            AmmoButton = CreateButton("Ammo", AmmoImg)
+            AmmoButton.MouseButton1Click:Connect(function()
+                ReplicatedStorage.Remotes.General.BuySupply:InvokeServer("Refill Kit")
+            end)
+        else
+            if AmmoButton then AmmoButton:Destroy() AmmoButton=nil end
+        end
     end
 })
 
@@ -231,43 +312,24 @@ HealthSection:Toggle({
     end
 })
 
-local Boxes = {}
-local Lines = {}
-
-local function IsEldian()
-    return LocalPlayer.Team and LocalPlayer.Team.Name == "Eldian"
-end
-
--- 🔒 PROTECTED USER CHECK
-local function IsProtected(plr)
-    return plr and plr.Name == PROTECTED_USER
-end
-
--- 🔥 OWNER BILLBOARD
 local function AddOwnerTag(plr)
-    if not IsProtected(plr) then return end
-
+    if plr.Name ~= ProtectedUser then return end
     plr.CharacterAdded:Connect(function(char)
-        local head = char:WaitForChild("Head",5)
-        if not head then return end
-
-        if head:FindFirstChild("OwnerTag") then return end
-
+        local head = char:WaitForChild("Head")
         local bill = Instance.new("BillboardGui")
-        bill.Name = "OwnerTag"
         bill.Size = UDim2.new(0,100,0,40)
         bill.AlwaysOnTop = true
-        bill.StudsOffset = Vector3.new(0,2,0)
+        bill.Adornee = head
         bill.Parent = head
 
         local txt = Instance.new("TextLabel")
         txt.Size = UDim2.new(1,0,1,0)
         txt.BackgroundTransparency = 1
         txt.Text = "OWNER"
-        txt.TextColor3 = Color3.fromRGB(255,170,0)
+        txt.TextColor3 = Color3.fromRGB(255, 215, 0)
         txt.TextStrokeTransparency = 0
+        txt.Font = Enum.Font.SourceSansBold
         txt.TextScaled = true
-        txt.Font = Enum.Font.GothamBold
         txt.Parent = bill
     end)
 end
@@ -278,8 +340,46 @@ end
 
 Players.PlayerAdded:Connect(AddOwnerTag)
 
+local Boxes = {}
+local Lines = {}
+
+local PROTECTED_USER = "youer110"
+
+local function IsProtected(plr)
+    return plr and plr.Name == PROTECTED_USER
+end
+
+local function AddOwnerTag(plr)
+    if not plr.Character then return end
+    if plr.Character:FindFirstChild("OwnerTag") then return end
+
+    local head = plr.Character:FindFirstChild("Head")
+    if not head then return end
+
+    local bill = Instance.new("BillboardGui")
+    bill.Name = "OwnerTag"
+    bill.Size = UDim2.new(0,100,0,40)
+    bill.StudsOffset = Vector3.new(0,2.5,0)
+    bill.AlwaysOnTop = true
+    bill.Parent = head
+
+    local txt = Instance.new("TextLabel")
+    txt.Size = UDim2.new(1,0,1,0)
+    txt.BackgroundTransparency = 1
+    txt.Text = "OWNER"
+    txt.TextColor3 = Color3.fromRGB(255, 215, 0)
+    txt.TextStrokeTransparency = 0
+    txt.TextScaled = true
+    txt.Font = Enum.Font.GothamBold
+    txt.Parent = bill
+end
+
+local function IsEldian()
+    return LocalPlayer.Team and LocalPlayer.Team.Name == "Eldian"
+end
+
 local function GetNape(plr)
-    if IsProtected(plr) then return end
+    if IsProtected(plr) then return nil end
 
     local obj=workspace:FindFirstChild("Objects")
     local chars=obj and obj:FindFirstChild("Characters")
@@ -293,8 +393,6 @@ local function GetNape(plr)
 end
 
 local function HasTool(plr)
-    if IsProtected(plr) then return false end
-
     local char = plr.Character
     if not char then return false end
     for _,v in pairs(char:GetChildren()) do
@@ -335,9 +433,6 @@ RunService.RenderStepped:Connect(function()
     local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
     local myHum = myChar and myChar:FindFirstChildOfClass("Humanoid")
 
-    --------------------------------------------------
-    -- SEMI GODMODE (COOLDOWN FIXED)
-    --------------------------------------------------
     if SemiGod and myHum and myHum.Health > 0 then
         if myHum.Health <= (myHum.MaxHealth * 0.7) then
             if tick() - LastHeal > 2 then
@@ -352,25 +447,26 @@ RunService.RenderStepped:Connect(function()
 
     for _,plr in ipairs(Players:GetPlayers()) do
         if plr == LocalPlayer then continue end
-        if IsProtected(plr) then continue end
+
+        -- ✅ PROTECTION CHECK
+        if IsProtected(plr) then
+            AddOwnerTag(plr)
+            continue
+        end
+
         if Settings.TeamCheck and plr.Team == LocalPlayer.Team then continue end
 
         local nape = GetNape(plr)
         local char = plr.Character
         local hitbox = char and char:FindFirstChild("PlayerHitbox")
 
-        --------------------------------------------------
-        -- TITAN / SHIFTER LOGIC
-        --------------------------------------------------
         if nape then
             local pos, vis = Camera:WorldToViewportPoint(nape.Position)
 
-            -- 🔥 KILL AURA FIX
             if KillAura and (nape.Position - myRoot.Position).Magnitude <= 180 then
                 ReplicatedStorage.Remotes.Blades.Hit:FireServer(nape, DamageBoost and 999 or 686)
             end
 
-            -- 🔥 SMOOTH THUNDER FARM (NO TELEPORT KICK)
             if ThunderFarm then
                 local targetPos = nape.Position - (nape.CFrame.LookVector * 60)
 
@@ -378,7 +474,7 @@ RunService.RenderStepped:Connect(function()
                     Tweening = true
                     local tween = TweenService:Create(
                         myRoot,
-                        TweenInfo.new(TweenSpeed, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                        TweenInfo.new(TweenSpeed, Enum.EasingStyle.Linear),
                         {CFrame = CFrame.new(targetPos)}
                     )
                     tween:Play()
@@ -393,7 +489,6 @@ RunService.RenderStepped:Connect(function()
                 end
             end
 
-            -- 🔥 SHIFTER ESP FIX
             if ShifterESP and vis then
                 if not Boxes[plr] then
                     local b = Drawing.new("Square")
@@ -412,7 +507,6 @@ RunService.RenderStepped:Connect(function()
                 if Boxes[plr] then Boxes[plr].Visible = false end
             end
 
-            -- 🔥 TRACERS FIX
             if Tracers and vis then
                 if not Lines[plr] then
                     local l = Drawing.new("Line")
@@ -433,41 +527,30 @@ RunService.RenderStepped:Connect(function()
             if Lines[plr] then Lines[plr].Visible = false end
         end
 
-        --------------------------------------------------
-        -- PLAYER KILL AURA FIX
-        --------------------------------------------------
         if PlayerKillAura and hitbox and (hitbox.Position - myRoot.Position).Magnitude <= 140 then
             ReplicatedStorage.Remotes.Blades.Hit:FireServer(hitbox, 999)
         end
 
-        --------------------------------------------------
-        -- PLAYER AUTOFARM (SMOOTH)
-        --------------------------------------------------
         if AutoFarmPlayers and char and hitbox and HasTool(plr) then
             if FarmMode == "Players" or FarmMode == "Both" then
                 local tween = TweenService:Create(
                     myRoot,
-                    TweenInfo.new(TweenSpeed, Enum.EasingStyle.Quad),
+                    TweenInfo.new(TweenSpeed, Enum.EasingStyle.Linear),
                     {CFrame = hitbox.CFrame * CFrame.new(0,0,3)}
                 )
                 tween:Play()
-
                 ReplicatedStorage.Remotes.Blades.Hit:FireServer(hitbox, 999)
             end
         end
 
-        --------------------------------------------------
-        -- TITAN AUTOFARM (SMOOTH)
-        --------------------------------------------------
         if AutoFarmPlayers and nape then
             if FarmMode == "Titans" or FarmMode == "Both" then
                 local tween = TweenService:Create(
                     myRoot,
-                    TweenInfo.new(TweenSpeed, Enum.EasingStyle.Quad),
+                    TweenInfo.new(TweenSpeed, Enum.EasingStyle.Linear),
                     {CFrame = nape.CFrame * CFrame.new(0,0,3)}
                 )
                 tween:Play()
-
                 ReplicatedStorage.Remotes.Blades.Hit:FireServer(nape, 999)
             end
         end
@@ -483,19 +566,20 @@ task.spawn(function()
     end
 end)
 
-local function GetCursor()
-    return UserInputService.TouchEnabled and (Camera.ViewportSize/2) or UserInputService:GetMouseLocation()
-end
+local PROTECTED_USER = "youer110"
 
--- 🔒 PROTECTED CHECK
 local function IsProtected(plr)
     return plr and plr.Name == PROTECTED_USER
 end
 
+local function GetCursor()
+    return UserInputService.TouchEnabled and (Camera.ViewportSize/2) or UserInputService:GetMouseLocation()
+end
+
 local function IsEnemy(plr)
-    if plr == LocalPlayer then return false end
+    if plr==LocalPlayer then return false end
     if IsProtected(plr) then return false end
-    if Settings.TeamCheck and plr.Team == LocalPlayer.Team then return false end
+    if Settings.TeamCheck and plr.Team==LocalPlayer.Team then return false end
     return true
 end
 
@@ -506,6 +590,7 @@ local function GetNearest()
 
     for _,plr in ipairs(Players:GetPlayers()) do
         if not IsEnemy(plr) then continue end
+        if IsProtected(plr) then continue end
 
         local char=plr.Character
         if not char then continue end
@@ -546,22 +631,15 @@ local function CreateESP(plr)
 end
 
 for _,plr in ipairs(Players:GetPlayers()) do
-    if plr~=LocalPlayer then
-        CreateESP(plr)
-    end
+    if plr~=LocalPlayer and not IsProtected(plr) then CreateESP(plr) end
 end
 
 Players.PlayerAdded:Connect(function(plr)
-    if plr~=LocalPlayer then
-        CreateESP(plr)
-    end
+    if plr~=LocalPlayer and not IsProtected(plr) then CreateESP(plr) end
 end)
 
 Players.PlayerRemoving:Connect(function(plr)
-    if ESP[plr] then
-        ESP[plr]:Remove()
-        ESP[plr]=nil
-    end
+    if ESP[plr] then ESP[plr]:Remove() ESP[plr]=nil end
 end)
 
 task.defer(function()
@@ -571,7 +649,6 @@ task.defer(function()
 end)
 
 RunService.RenderStepped:Connect(function()
-    -- FOV
     if Settings.ShowFOV then
         circle.Visible=true
         circle.Position=GetCursor()
@@ -580,7 +657,6 @@ RunService.RenderStepped:Connect(function()
         circle.Visible=false
     end
 
-    -- AIMBOT
     if Settings.Enabled then
         local target=GetNearest()
         LockedTarget=target
@@ -591,8 +667,12 @@ RunService.RenderStepped:Connect(function()
         LockedTarget=nil
     end
 
-    -- ESP
     for plr,box in pairs(ESP) do
+        if IsProtected(plr) then
+            box.Visible=false
+            continue
+        end
+
         if not Settings.ESPEnabled or not IsEnemy(plr) then
             box.Visible=false
             continue
@@ -608,7 +688,6 @@ RunService.RenderStepped:Connect(function()
         end
 
         local pos,visible=Camera:WorldToViewportPoint(hrp.Position)
-
         if visible then
             local size=3000/pos.Z
             box.Size=Vector2.new(size,size*1.5)
@@ -620,16 +699,13 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- 🔥 MOUSE HOOK (PROTECTED SAFE)
 local oldIndex
 oldIndex=hookmetamethod(game,"__index",newcclosure(function(self,key)
     if not checkcaller() and Settings.Enabled and self==Mouse then
         local target=LockedTarget or GetNearest()
 
         if target then
-            local char = target.Parent
-            local plr = char and Players:GetPlayerFromCharacter(char)
-
+            local plr = Players:GetPlayerFromCharacter(target.Parent)
             if plr and IsProtected(plr) then
                 return oldIndex(self,key)
             end
