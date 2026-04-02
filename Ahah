@@ -6,8 +6,6 @@ local UserInputService = game:GetService("UserInputService")
 local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Lighting = game:GetService("Lighting")
-local Debris = game:GetService("Debris")
 local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
@@ -55,6 +53,9 @@ local MainIcon = loadImage("main.png","https://raw.githubusercontent.com/Notsose
 local EldianIcon = loadImage("eldian.png","https://raw.githubusercontent.com/Notsoseriousscripter/Decodeinasma/refs/heads/main/images%20(19)%20(1).png")
 local MiscIcon = loadImage("misc.png","https://raw.githubusercontent.com/Notsoseriousscripter/Decodeinasma/refs/heads/main/4hxn62u3ohzb1.png")
 
+local MedkitImg = loadImage("medkit.png","https://raw.githubusercontent.com/Notsoseriousscripter/Decodeinasma/refs/heads/main/20260328_090408_0001-removebg-preview.png")
+local AmmoImg = loadImage("ammo.png","https://raw.githubusercontent.com/Notsoseriousscripter/Decodeinasma/refs/heads/main/20260328_090740_0001-removebg-preview.png")
+
 local ShifterImage = loadImage("shifter.png","https://raw.githubusercontent.com/Notsoseriousscripter/Decodeinasma/refs/heads/main/images__18_-removebg-preview.png")
 local TitanImage   = loadImage("titan.png","https://raw.githubusercontent.com/Notsoseriousscripter/Decodeinasma/refs/heads/main/noFilter.png")
 local AntiImage    = loadImage("anti.png","https://raw.githubusercontent.com/Notsoseriousscripter/Decodeinasma/refs/heads/main/attackontitaneating.png")
@@ -78,9 +79,7 @@ pcall(function()
     end)
 end)
 
---------------------------------------------------
 -- MARLEYAN TAB
---------------------------------------------------
 local AimTab = Window:Tab({Title = "Marleyan", Icon = MainIcon})
 
 AimTab:Paragraph({Title = "Titan Warfare",Desc = "",Thumbnail = TitanImage})
@@ -125,9 +124,7 @@ TitanSection:Button({
     end
 })
 
---------------------------------------------------
 -- ELDIAN TAB
---------------------------------------------------
 local AntiTab = Window:Tab({Title="Eldian",Icon=EldianIcon})
 
 AntiTab:Paragraph({Title="Eldian",Desc="",Thumbnail=AntiImage})
@@ -169,70 +166,75 @@ ShifterSection:Slider({
     end
 })
 
---------------------------------------------------
--- 🔥 NEW SKILL TAB
---------------------------------------------------
-local SkillTab = Window:Tab({Title="Skills", Icon = MiscIcon})
+local PlayerSection = AntiGroup:Section({
+    Title="Players",
+    Box=true,
+    BoxBorder=true,
+    Opened=false
+})
 
-local SkillGroup = SkillTab:Group({})
-
-local AckermanEnabled = false
-local AckermanCooldown = false
-
-SkillGroup:Toggle({
-    Title="Ackerman Presence",
+PlayerSection:Toggle({
+    Title="Auto Farm Players",
     Callback=function(v)
-        AckermanEnabled = v
+        AutoFarmPlayers=v
         PlayClick()
     end
 })
 
---------------------------------------------------
--- BUTTON UI (SPAWNED ONLY WHEN ENABLED)
---------------------------------------------------
-local buttonGui
-local button
-
-local function CreateAckermanButton()
-    if buttonGui then return end
-
-    buttonGui = Instance.new("ScreenGui")
-    buttonGui.Parent = CoreGui
-    buttonGui.ResetOnSpawn = false
-
-    button = Instance.new("ImageButton")
-    button.Size = UDim2.new(0,78,0,78)
-    button.Position = UDim2.new(0,50,0,200)
-    button.BackgroundTransparency = 1
-    button.Image = "rbxassetid://0"
-    button.Parent = buttonGui
-
-    button.MouseButton1Click:Connect(function()
-        if AckermanCooldown then return end
-        AckermanCooldown = true
-
-        _G.FireTendons = true
-
-        task.delay(4,function()
-            AckermanCooldown = false
-        end)
-    end)
-end
-
-RunService.RenderStepped:Connect(function()
-    if AckermanEnabled then
-        CreateAckermanButton()
-    else
-        if buttonGui then
-            buttonGui:Destroy()
-            buttonGui = nil
-        end
+PlayerSection:Dropdown({
+    Title="Farm Mode",
+    Values={"Players","Titans","Both"},
+    Callback=function(v)
+        FarmMode=v
+        PlayClick()
     end
-end)
+})
 
---------------------------------------------------
--- 🔥 BACKEND SYSTEMS + FIXED LOGICS
---------------------------------------------------
+-- 🔥 NEW SKILLS TAB
+local SkillTab = Window:Tab({Title="Skills", Icon = MiscIcon})
+local SkillGroup = SkillTab:Group({})
+
+local AckermanPresence = false
+
+SkillGroup:Section({
+    Title="Ackerman Skills",
+    Box=true,
+    BoxBorder=true,
+    Opened=true
+})
+
+SkillGroup:Toggle({
+    Title="Ackerman Presence",
+    Callback=function(v)
+        AckermanPresence = v
+        PlayClick()
+    end
+})
+
+-- MISC TAB
+local MiscTab = Window:Tab({Title="Misc",Icon=MiscIcon})
+
+MiscTab:Paragraph({
+    Title="Experimental",
+    Desc="this tab is for experimental features expect some bugs if there are bugs report it to me on discord",
+    Thumbnail=MiscIcon
+})
+
+local MiscGroup = MiscTab:Group({})
+local OpGroup = MiscTab:Group({Title="op"})
+
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local MiscGui = Instance.new("ScreenGui")
+MiscGui.Name = "MiscButtons"
+MiscGui.ResetOnSpawn = false
+MiscGui.Parent = PlayerGui
+
+local MedkitButton
+local AmmoButton
+local AckermanButton
+
+-- 🔥 BACKEND SYSTEMS + ACKERMAN PRESENCE
 
 local Boxes = {}
 local Lines = {}
@@ -241,18 +243,13 @@ local function IsEldian()
     return LocalPlayer.Team and LocalPlayer.Team.Name == "Eldian"
 end
 
-local function GetCharacterModel(plr)
-    local obj = workspace:FindFirstChild("Objects")
-    local chars = obj and obj:FindFirstChild("Characters")
-    return chars and chars:FindFirstChild(plr.Name)
-end
-
 local function GetNape(plr)
-    local char = GetCharacterModel(plr)
+    local obj=workspace:FindFirstChild("Objects")
+    local chars=obj and obj:FindFirstChild("Characters")
+    local char=chars and chars:FindFirstChild(plr.Name)
     if not char then return end
-
     for _,v in pairs(char:GetChildren()) do
-        if v:FindFirstChild("Nape") then
+        if v.Name ~= "Armored" and v:FindFirstChild("Nape") then
             return v.Nape
         end
     end
@@ -261,7 +258,9 @@ end
 -- 🔥 NEW: GET ALL TENDONS
 local function GetTendons(plr)
     local tendons = {}
-    local char = GetCharacterModel(plr)
+    local obj=workspace:FindFirstChild("Objects")
+    local chars=obj and obj:FindFirstChild("Characters")
+    local char=chars and chars:FindFirstChild(plr.Name)
     if not char then return tendons end
 
     for _,v in pairs(char:GetDescendants()) do
@@ -284,9 +283,7 @@ local function HasTool(plr)
     return false
 end
 
---------------------------------------------------
--- 🔥 MEDKIT FIX (NO SPAM + CHECK)
---------------------------------------------------
+-- 🔥 IMPROVED MEDKIT (NO SPAM BUY)
 local function UseMedkit()
     local char = LocalPlayer.Character
     if not char then return end
@@ -308,24 +305,102 @@ local function UseMedkit()
     end
 end
 
---------------------------------------------------
--- 🔥 VARIABLES
---------------------------------------------------
+-- 🔥 ACKERMAN BUTTON SPAWN
+local AckermanGui = Instance.new("ScreenGui")
+AckermanGui.Name = "AckermanUI"
+AckermanGui.Parent = CoreGui
+AckermanGui.ResetOnSpawn = false
+
+local AckermanButtonInstance
+local AckermanCooldown = false
+
+local function SpawnAckermanButton()
+    if AckermanButtonInstance then return end
+
+    local img = "levi_haki.png"
+    if not isfile(img) then
+        writefile(img, game:HttpGet("https://raw.githubusercontent.com/Notsoseriousscripter/Decodeinasma/refs/heads/main/LEVI_CONQUER_HAKI_20260330_223933_0001-removebg-preview.png"))
+    end
+
+    local btn = Instance.new("ImageButton")
+    btn.Size = UDim2.new(0,78,0,78)
+    btn.Position = UDim2.new(0,50,0,200)
+    btn.Image = getcustomasset(img)
+    btn.BackgroundTransparency = 1
+    btn.Parent = AckermanGui
+
+    AckermanButtonInstance = btn
+
+    btn.MouseButton1Click:Connect(function()
+        if AckermanCooldown then return end
+        AckermanCooldown = true
+
+        -- 🔥 VFX CALL
+        ConquerorHakiVFX()
+
+        -- 🔥 FIRE ON ALL NEARBY TARGETS
+        local myChar = LocalPlayer.Character
+        local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+        if not myRoot then return end
+
+        for _,plr in ipairs(Players:GetPlayers()) do
+            if plr == LocalPlayer then continue end
+
+            local char = plr.Character
+            if not char then continue end
+
+            local distance = (char:GetPivot().Position - myRoot.Position).Magnitude
+            if distance > 400 then continue end
+
+            local tendons = GetTendons(plr)
+
+            if #tendons > 0 then
+                for _,tendon in pairs(tendons) do
+                    ReplicatedStorage.Remotes.Blades.Hit:FireServer(tendon,999)
+                end
+            else
+                local hitbox = char:FindFirstChild("PlayerHitbox")
+                if hitbox then
+                    ReplicatedStorage.Remotes.Blades.Hit:FireServer(hitbox,999)
+                end
+            end
+        end
+
+        task.delay(4,function()
+            AckermanCooldown = false
+        end)
+    end)
+end
+
+local function RemoveAckermanButton()
+    if AckermanButtonInstance then
+        AckermanButtonInstance:Destroy()
+        AckermanButtonInstance = nil
+    end
+end
+
+-- 🔥 HOOK TO TOGGLE
+task.spawn(function()
+    while true do
+        task.wait(0.3)
+        if AckermanPresence then
+            SpawnAckermanButton()
+        else
+            RemoveAckermanButton()
+        end
+    end
+end)
+
 local LastThrow = 0
 local LastHeal = 0
 local Tweening = false
 
---------------------------------------------------
--- 🔥 MAIN LOOP
---------------------------------------------------
 RunService.RenderStepped:Connect(function()
     local myChar = LocalPlayer.Character
     local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
     local myHum = myChar and myChar:FindFirstChildOfClass("Humanoid")
 
-    --------------------------------------------------
-    -- ✅ SEMI GODMODE (FIXED COOLDOWN)
-    --------------------------------------------------
+    -- ✅ SEMI GODMODE FIX
     if SemiGod and myHum and myHum.Health > 0 then
         if myHum.Health <= (myHum.MaxHealth * 0.7) then
             if tick() - LastHeal > 2 then
@@ -343,31 +418,17 @@ RunService.RenderStepped:Connect(function()
         if Settings.TeamCheck and plr.Team == LocalPlayer.Team then continue end
 
         local nape = GetNape(plr)
-        local tendons = GetTendons(plr)
         local char = plr.Character
         local hitbox = char and char:FindFirstChild("PlayerHitbox")
 
-        --------------------------------------------------
-        -- 🔥 TENDON BURST (ACKERMAN SKILL)
-        --------------------------------------------------
-        if _G.FireTendons and #tendons > 0 then
-            for _,tendon in ipairs(tendons) do
-                ReplicatedStorage.Remotes.Blades.Hit:FireServer(tendon, 999)
-            end
-        end
-
-        --------------------------------------------------
-        -- 🔥 SHIFTER LOGIC (FIXED)
-        --------------------------------------------------
         if nape then
             local pos, vis = Camera:WorldToViewportPoint(nape.Position)
 
-            -- ✅ FIXED KILL AURA (CONSISTENT)
             if KillAura and (nape.Position - myRoot.Position).Magnitude <= 180 then
                 ReplicatedStorage.Remotes.Blades.Hit:FireServer(nape, DamageBoost and 999 or 686)
             end
 
-            -- ✅ SMOOTH TWEEN (NO KICKS)
+            -- 🔥 SMOOTH TWEEN FIX (NO KICK)
             if ThunderFarm then
                 local targetPos = nape.Position - (nape.CFrame.LookVector * 60)
 
@@ -390,9 +451,7 @@ RunService.RenderStepped:Connect(function()
                 end
             end
 
-            --------------------------------------------------
-            -- ✅ ESP FIX
-            --------------------------------------------------
+            -- ESP + TRACERS FIX
             if ShifterESP and vis then
                 if not Boxes[plr] then
                     local b = Drawing.new("Square")
@@ -411,9 +470,6 @@ RunService.RenderStepped:Connect(function()
                 if Boxes[plr] then Boxes[plr].Visible = false end
             end
 
-            --------------------------------------------------
-            -- ✅ TRACERS FIX
-            --------------------------------------------------
             if Tracers and vis then
                 if not Lines[plr] then
                     local l = Drawing.new("Line")
@@ -429,246 +485,182 @@ RunService.RenderStepped:Connect(function()
             else
                 if Lines[plr] then Lines[plr].Visible = false end
             end
-        else
-            if Boxes[plr] then Boxes[plr].Visible = false end
-            if Lines[plr] then Lines[plr].Visible = false end
         end
 
-        --------------------------------------------------
-        -- 🔥 PLAYER KILL AURA (FIXED RANGE + CONSISTENCY)
-        --------------------------------------------------
         if PlayerKillAura and hitbox and (hitbox.Position - myRoot.Position).Magnitude <= 140 then
             ReplicatedStorage.Remotes.Blades.Hit:FireServer(hitbox, 999)
         end
 
-        --------------------------------------------------
-        -- 🔥 PLAYER AUTOFARM (FIXED)
-        --------------------------------------------------
         if AutoFarmPlayers and char and hitbox and HasTool(plr) then
             if FarmMode == "Players" or FarmMode == "Both" then
-                local tween = TweenService:Create(
+                TweenService:Create(
                     myRoot,
                     TweenInfo.new(TweenSpeed, Enum.EasingStyle.Linear),
                     {CFrame = hitbox.CFrame * CFrame.new(0,0,3)}
-                )
-                tween:Play()
+                ):Play()
 
                 ReplicatedStorage.Remotes.Blades.Hit:FireServer(hitbox, 999)
             end
         end
 
-        --------------------------------------------------
-        -- 🔥 TITAN AUTOFARM (FIXED)
-        --------------------------------------------------
         if AutoFarmPlayers and nape then
             if FarmMode == "Titans" or FarmMode == "Both" then
-                local tween = TweenService:Create(
+                TweenService:Create(
                     myRoot,
                     TweenInfo.new(TweenSpeed, Enum.EasingStyle.Linear),
                     {CFrame = nape.CFrame * CFrame.new(0,0,3)}
-                )
-                tween:Play()
+                ):Play()
 
                 ReplicatedStorage.Remotes.Blades.Hit:FireServer(nape, 999)
             end
         end
     end
-
-    -- reset tendon trigger (one burst per click)
-    _G.FireTendons = false
 end)
-
---------------------------------------------------
--- 🔥 INFINITE SPEAR (SAFE)
---------------------------------------------------
-task.spawn(function()
-    while true do
-        task.wait(0.3)
-        if InfSpear and IsEldian() then
-            ReplicatedStorage.Remotes.Thunderspear.Refill:FireServer()
-        end
-    end
-end)
-
---------------------------------------------------
--- 🎯 AIMBOT + ESP SYSTEM
---------------------------------------------------
 
 local function GetCursor()
     return UserInputService.TouchEnabled and (Camera.ViewportSize/2) or UserInputService:GetMouseLocation()
 end
 
 local function IsEnemy(plr)
-    if plr == LocalPlayer then return false end
-    if Settings.TeamCheck and plr.Team == LocalPlayer.Team then return false end
+    if plr==LocalPlayer then return false end
+    if Settings.TeamCheck and plr.Team==LocalPlayer.Team then return false end
     return true
 end
 
--- 🔥 IMPROVED TARGETING (STABLE + DISTANCE PRIORITY)
 local function GetNearest()
-    local closest, distMin = nil, math.huge
-    local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local closest,distMin=nil,math.huge
+    local myRoot=LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if not myRoot then return nil end
 
     for _,plr in ipairs(Players:GetPlayers()) do
         if not IsEnemy(plr) then continue end
-
-        local char = plr.Character
+        local char=plr.Character
         if not char then continue end
 
-        local part = char:FindFirstChild(Settings.HitPart)
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        local root = char:FindFirstChild("HumanoidRootPart")
+        local part=char:FindFirstChild(Settings.HitPart)
+        local hum=char:FindFirstChildOfClass("Humanoid")
+        local root=char:FindFirstChild("HumanoidRootPart")
 
-        if not part or not hum or hum.Health <= 0 or not root then continue end
+        if not part or not hum or hum.Health<=0 or not root then continue end
 
-        local dist = (root.Position - myRoot.Position).Magnitude
-        if dist < distMin then
-            distMin = dist
-            closest = part
+        local dist=(root.Position-myRoot.Position).Magnitude
+        if dist<distMin then
+            distMin=dist
+            closest=part
         end
     end
 
     return closest
 end
 
-local LockedTarget = nil
+local LockedTarget=nil
 
---------------------------------------------------
--- 🎯 FOV CIRCLE
---------------------------------------------------
-local circle = Drawing.new("Circle")
-circle.Thickness = 1
-circle.Filled = false
-circle.NumSides = 100
+local circle=Drawing.new("Circle")
+circle.Thickness=1
+circle.Filled=false
 
---------------------------------------------------
--- 🔥 ESP SYSTEM (MORE STABLE)
---------------------------------------------------
-local ESP = {}
+local ESP={}
 
 local function CreateESP(plr)
-    local box = Drawing.new("Square")
-    box.Color = Color3.fromRGB(255,0,0)
-    box.Thickness = 2
-    box.Filled = false
-    box.Visible = false
-    ESP[plr] = box
+    local box=Drawing.new("Square")
+    box.Color=Color3.fromRGB(255,0,0)
+    box.Thickness=2
+    box.Filled=false
+    box.Visible=false
+    ESP[plr]=box
 end
 
 for _,plr in ipairs(Players:GetPlayers()) do
-    if plr ~= LocalPlayer then
-        CreateESP(plr)
-    end
+    if plr~=LocalPlayer then CreateESP(plr) end
 end
 
 Players.PlayerAdded:Connect(function(plr)
-    if plr ~= LocalPlayer then
-        CreateESP(plr)
-    end
+    if plr~=LocalPlayer then CreateESP(plr) end
 end)
 
 Players.PlayerRemoving:Connect(function(plr)
-    if ESP[plr] then
-        ESP[plr]:Remove()
-        ESP[plr] = nil
-    end
+    if ESP[plr] then ESP[plr]:Remove() ESP[plr]=nil end
 end)
 
---------------------------------------------------
--- 🔥 DISABLE DEFAULT ON START
---------------------------------------------------
 task.defer(function()
-    Settings.Enabled = false
-    Settings.ESPEnabled = false
-    Settings.ShowFOV = false
+    Settings.Enabled=false
+    Settings.ESPEnabled=false
+    Settings.ShowFOV=false
 end)
 
---------------------------------------------------
--- 🔥 MAIN RENDER LOOP
---------------------------------------------------
 RunService.RenderStepped:Connect(function()
-    --------------------------------------------------
-    -- FOV
-    --------------------------------------------------
+    -- FOV CIRCLE
     if Settings.ShowFOV then
-        circle.Visible = true
-        circle.Position = GetCursor()
-        circle.Radius = Settings.FOV
+        circle.Visible=true
+        circle.Position=GetCursor()
+        circle.Radius=Settings.FOV
     else
-        circle.Visible = false
+        circle.Visible=false
     end
 
-    --------------------------------------------------
-    -- AIMBOT (SMOOTH LOCK)
-    --------------------------------------------------
+    -- AIMBOT
     if Settings.Enabled then
-        local target = GetNearest()
-        LockedTarget = target
+        local target=GetNearest()
+        LockedTarget=target
 
         if target then
-            local camPos = Camera.CFrame.Position
-            local aimCF = CFrame.new(camPos, target.Position)
-
-            -- smooth lerp (prevents snapping/kick flags)
-            Camera.CFrame = Camera.CFrame:Lerp(aimCF, 0.25)
+            Camera.CFrame = Camera.CFrame:Lerp(
+                CFrame.new(Camera.CFrame.Position, target.Position),
+                0.35 -- smooth aim (less snap = less detection)
+            )
         end
     else
-        LockedTarget = nil
+        LockedTarget=nil
     end
 
-    --------------------------------------------------
-    -- ESP UPDATE
-    --------------------------------------------------
-    for plr, box in pairs(ESP) do
+    -- ESP
+    for plr,box in pairs(ESP) do
         if not Settings.ESPEnabled or not IsEnemy(plr) then
-            box.Visible = false
+            box.Visible=false
             continue
         end
 
-        local char = plr.Character
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        local char=plr.Character
+        local hrp=char and char:FindFirstChild("HumanoidRootPart")
+        local hum=char and char:FindFirstChildOfClass("Humanoid")
 
-        if not hrp or not hum or hum.Health <= 0 then
-            box.Visible = false
+        if not hrp or not hum or hum.Health<=0 then
+            box.Visible=false
             continue
         end
 
-        local pos, visible = Camera:WorldToViewportPoint(hrp.Position)
+        local pos,visible=Camera:WorldToViewportPoint(hrp.Position)
 
         if visible then
-            local size = 2600 / pos.Z
-            box.Size = Vector2.new(size, size * 1.4)
-            box.Position = Vector2.new(pos.X - size/2, pos.Y - size/1.2)
-            box.Visible = true
+            local size=3000/pos.Z
+            box.Size=Vector2.new(size,size*1.5)
+            box.Position=Vector2.new(pos.X-size/2,pos.Y-size/1.5)
+            box.Visible=true
         else
-            box.Visible = false
+            box.Visible=false
         end
     end
 end)
 
---------------------------------------------------
--- 🔥 SILENT AIM (HOOK)
---------------------------------------------------
+-- 🔥 SILENT AIM (METAMETHOD HOOK)
 local oldIndex
-oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
-    if not checkcaller() and Settings.Enabled and self == Mouse then
-        local target = LockedTarget or GetNearest()
+oldIndex=hookmetamethod(game,"__index",newcclosure(function(self,key)
+    if not checkcaller() and Settings.Enabled and self==Mouse then
+        local target=LockedTarget or GetNearest()
 
         if target then
-            if key == "Target" then
+            if key=="Target" then
                 return target
-            elseif key == "Hit" then
+            elseif key=="Hit" then
                 return target.CFrame
-            elseif key == "UnitRay" then
+            elseif key=="UnitRay" then
                 return Ray.new(
                     Camera.CFrame.Position,
-                    (target.Position - Camera.CFrame.Position).Unit
+                    (target.Position-Camera.CFrame.Position).Unit
                 )
             end
         end
     end
 
-    return oldIndex(self, key)
+    return oldIndex(self,key)
 end))
